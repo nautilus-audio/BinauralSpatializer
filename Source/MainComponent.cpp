@@ -9,6 +9,7 @@
 #include "MainComponent.h"
 #include <stdlib.h>
 #include <string>
+#include <cstring>
 #include <iostream>
 
 //==============================================================================
@@ -25,7 +26,7 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load File"
     playButton.setEnabled(true);
     addAndMakeVisible(&playButton);
     
-    stopButton.onClick = [this] { stopButtonClicked(); };
+    stopButton.onClick = [this] { stopButtonClicked(); loadButton.setColour(TextButton::buttonColourId, Colours::grey);};
     stopButton.setColour(TextButton::buttonColourId, Colours::red);
     stopButton.setEnabled(false);
     addAndMakeVisible(&stopButton);
@@ -35,13 +36,13 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load File"
     
     setSize (600, 400);
     
-    file_01_FL = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-01-FL.wav");
-    file_02_FR = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-02-FR.wav");
-    file_03_C = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-03-C.wav");
-    file_04_LFE = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-04-LFE.wav");
-    file_05_RL = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-05-RL.wav");
-    file_06_RR = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/audio_content/file-06-RR.wav");
-    
+    file_01_FL = File(audio_file_dir + "file-01-FL.wav");
+    file_02_FR = File(audio_file_dir + "file-02-FR.wav");
+    file_03_C = File(audio_file_dir + "file-03-C.wav");
+    file_04_LFE = File(audio_file_dir + "file-04-LFE.wav");
+    file_05_RL = File(audio_file_dir + "file-05-RL.wav");
+    file_06_RR = File(audio_file_dir + "file-06-RR.wav");
+
     //read the files
     AudioFormatReader* reader_FL = formatManager.createReaderFor(file_01_FL);
     AudioFormatReader* reader_FR = formatManager.createReaderFor(file_02_FR);
@@ -129,15 +130,11 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     convRL.prepare(spec);
     convRR.prepare(spec);
     updateParameters();
-    
-    //mixer.prepareToPlay(samplesPerBlockExpected, sampleRate);
-    //player.prepareToPlay(sampleRate, samplesPerBlockExpected);
     transport1.prepareToPlay(samplesPerBlockExpected, sampleRate);
 }
 
 void MainComponent::loadButtonClicked()
 {
-    //process();
     transportStateChanged(Stopped);
     process();
     auto reader_out = formatManager.createReaderFor(binauralOut);
@@ -228,11 +225,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     // Right now we are not producing any data, in which case we need to clear the buffer
     // (to prevent the output of random noise)
     bufferToFill.clearActiveBufferRegion();
-    auto samp2 = bufferToFill.numSamples;
-    if (!written) {
-//        process();
-        written = true;
-    }
+    //auto samp2 = bufferToFill.numSamples;
     transport1.getNextAudioBlock(bufferToFill);
 }
 
@@ -279,7 +272,7 @@ void MainComponent::process()
     AudioFormatWriter* writer_out;
     WavAudioFormat waf;
     StringPairArray meta;
-    binauralOut = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/output/binaural_output.wav");
+    binauralOut = File(base_dir + "binaural_output.wav");
     FileOutputStream* outputTo = binauralOut.createOutputStream();
     writer_out = waf.createWriterFor(outputTo,sampleRate,2,16,meta,true);
     writer_out->writeFromAudioSampleBuffer (buffer_out, 0, buffer_out.getNumSamples());
@@ -290,11 +283,11 @@ void MainComponent::updateParameters()
 {
     // update process params
     // load impulse responses
-    hrirFL = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/hrir/hrirFL.wav");
-    hrirFR = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/hrir/hrirFR.wav");
-    hrirC = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/hrir/hrirC.wav");
-    hrirRL = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/hrir/hrirRL.wav");
-    hrirRR = File("/Users/kamilahmitchell/Desktop/JUCE/EmbodyChallenge/data/hrir/hrirRR.wav");
+    hrirFL = File(hrir_file_dir + "hrirFL.wav");
+    hrirFR = File(hrir_file_dir + "hrirFR.wav");
+    hrirC = File(hrir_file_dir + "hrirC.wav");
+    hrirRL = File(hrir_file_dir + "hrirRL.wav");
+    hrirRR = File(hrir_file_dir + "hrirRR.wav");
     
     auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     

@@ -78,6 +78,14 @@ private:
     File file_01_FL, file_02_FR, file_03_C, file_04_LFE, file_05_RL, file_06_RR;
     File binauralOut;
     
+    // Build File Paths
+    File app_path = File::getSpecialLocation (File::currentApplicationFile);
+    String app_path_string = app_path.getFullPathName();
+    int build_index = app_path_string.indexOf("Builds");
+    String base_dir = app_path_string.substring(0, build_index);
+    String audio_file_dir = base_dir + "data/audio_content/";
+    String hrir_file_dir = base_dir + "data/hrir/";
+    
     enum Channels {
         LEFT = 0,
         RIGHT = 1
