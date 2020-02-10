@@ -12,7 +12,7 @@
 #include <iostream>
 
 //==============================================================================
-MainComponent::MainComponent() :state(Stopped), loadButton("Load Rendered File"), playButton("Play"), stopButton("Stop")
+MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load File"), playButton("Play"), stopButton("Stop")
 {
     // Make sure you set the size of the component after
     // you add any child components.
