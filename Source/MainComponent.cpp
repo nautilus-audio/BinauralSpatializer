@@ -233,12 +233,12 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     transport1.getNextAudioBlock(bufferToFill);
 //    AudioBuffer <float> buf;
 //    buf = process();
-//    
+//
 //    for (int sample = 0; sample < buf.getNumSamples(); sample+=bufferToFill.numSamples) {
 //    }
 }
 
-AudioBuffer <float> MainComponent::process()
+void MainComponent::process()
 {
     // start buffer loop
     
@@ -287,7 +287,7 @@ AudioBuffer <float> MainComponent::process()
     }
     delete writer_out;
     
-    return buffer_out;
+    //return buffer_out;
 }
 
 void MainComponent::updateParameters()
@@ -300,7 +300,7 @@ void MainComponent::updateParameters()
     hrirRL = File(hrir_file_dir + "hrirRL.wav");
     hrirRR = File(hrir_file_dir + "hrirRR.wav");
     
-    auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
+    //auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     
     convFL.loadImpulseResponse(hrirFL, true, false, hrirLenSlider.getValue(), true);
     convFR.loadImpulseResponse(hrirFR, true, false, hrirLenSlider.getValue(), true);

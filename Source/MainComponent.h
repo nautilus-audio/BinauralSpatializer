@@ -54,7 +54,7 @@ private:
     void stopButtonClicked();
     void transportStateChanged(TransportState newState);
     void changeListenerCallback (ChangeBroadcaster *source) override;
-    AudioBuffer <float> process();
+    void process();
     void updateParameters();
     void reset();
     
