@@ -54,7 +54,7 @@ private:
     void stopButtonClicked();
     void transportStateChanged(TransportState newState);
     void changeListenerCallback (ChangeBroadcaster *source) override;
-    void process();
+    AudioBuffer <float> process();
     void updateParameters();
     void reset();
     
@@ -70,6 +70,7 @@ private:
     MixerAudioSource mixer;
     AudioSourcePlayer player;
     
+    Slider hrirLenSlider;
     TextButton loadButton;
     TextButton playButton;
     TextButton stopButton;

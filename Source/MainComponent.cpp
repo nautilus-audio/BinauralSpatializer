@@ -13,7 +13,7 @@
 #include <iostream>
 
 //==============================================================================
-MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load File"), playButton("Play"), stopButton("Stop")
+MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load"), playButton("Play"), stopButton("Stop")
 {
     // Make sure you set the size of the component after
     // you add any child components.
@@ -30,6 +30,11 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load File"
     stopButton.setColour(TextButton::buttonColourId, Colours::red);
     stopButton.setEnabled(false);
     addAndMakeVisible(&stopButton);
+    
+    //hrirLenSlider.setSliderStyle(juce::Slider::Rotary);
+    auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
+    hrirLenSlider.setRange(0, maxSize);
+    addAndMakeVisible(&hrirLenSlider);
     
     formatManager.registerBasicFormats();
     transport1.addChangeListener(this);
@@ -225,16 +230,17 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     // Right now we are not producing any data, in which case we need to clear the buffer
     // (to prevent the output of random noise)
     bufferToFill.clearActiveBufferRegion();
-    //auto samp2 = bufferToFill.numSamples;
     transport1.getNextAudioBlock(bufferToFill);
+//    AudioBuffer <float> buf;
+//    buf = process();
+//    
+//    for (int sample = 0; sample < buf.getNumSamples(); sample+=bufferToFill.numSamples) {
+//    }
 }
 
-void MainComponent::process()
+AudioBuffer <float> MainComponent::process()
 {
     // start buffer loop
-//    for (int sample = 0; sample < buffer_FL.getNumSamples(); sample++) {
-//
-//    }
     
     // Load buffers into audio blocks
     dsp::AudioBlock<float> block_FL (buffer_FL);
@@ -275,8 +281,13 @@ void MainComponent::process()
     binauralOut = File(base_dir + "binaural_output.wav");
     FileOutputStream* outputTo = binauralOut.createOutputStream();
     writer_out = waf.createWriterFor(outputTo,sampleRate,2,16,meta,true);
-    writer_out->writeFromAudioSampleBuffer (buffer_out, 0, buffer_out.getNumSamples());
+    if (!written)
+    {
+        writer_out->writeFromAudioSampleBuffer (buffer_out, 0, buffer_out.getNumSamples());
+    }
     delete writer_out;
+    
+    return buffer_out;
 }
 
 void MainComponent::updateParameters()
@@ -291,11 +302,11 @@ void MainComponent::updateParameters()
     
     auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     
-    convFL.loadImpulseResponse(hrirFL, true, false, maxSize, true);
-    convFR.loadImpulseResponse(hrirFR, true, false, maxSize, true);
-    convC.loadImpulseResponse(hrirC, true, false, maxSize, true);
-    convRL.loadImpulseResponse(hrirRL, true, false, maxSize, true);
-    convRR.loadImpulseResponse(hrirRR, true, false, maxSize, true);
+    convFL.loadImpulseResponse(hrirFL, true, false, hrirLenSlider.getValue(), true);
+    convFR.loadImpulseResponse(hrirFR, true, false, hrirLenSlider.getValue(), true);
+    convC.loadImpulseResponse(hrirC, true, false, hrirLenSlider.getValue(), true);
+    convRL.loadImpulseResponse(hrirRL, true, false, hrirLenSlider.getValue(), true);
+    convRR.loadImpulseResponse(hrirRR, true, false, hrirLenSlider.getValue(), true);
 }
 
 void MainComponent::reset()
@@ -315,6 +326,10 @@ void MainComponent::releaseResources()
     // For more details, see the help for AudioProcessor::releaseResources()
     mixer.releaseResources();
     transport1.releaseResources();
+    reset();
+    
+    //Clear Out Buffer
+    buffer_out.clear();
 }
 
 //==============================================================================
@@ -333,4 +348,5 @@ void MainComponent::resized()
     loadButton.setBounds(10, 10, getWidth() - 20, 30);
     playButton.setBounds(10, 50, getWidth() - 20, 30);
     stopButton.setBounds(10, 90, getWidth() - 20, 30);
+    hrirLenSlider.setBounds(10, 120, getWidth() - 20, 30);
 }
