@@ -31,9 +31,9 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load"), pl
     stopButton.setEnabled(false);
     addAndMakeVisible(&stopButton);
     
-    //hrirLenSlider.setSliderStyle(juce::Slider::Rotary);
-    auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
-    hrirLenSlider.setRange(0, maxSize);
+    //auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
+    hrirLenSlider.setRange(0, 400);
+    hrirLenSlider.onValueChange = [this] {updateParameters();};
     addAndMakeVisible(&hrirLenSlider);
     
     formatManager.registerBasicFormats();
@@ -59,38 +59,43 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load"), pl
     //read files into buffers for convolution
     if (reader_FL != nullptr)
     {
-        buffer_out.setSize(2, (int) reader_FL->lengthInSamples);
         buffer_FL.setSize(2, (int) reader_FL->lengthInSamples); //maybe reader_FL->lengthInSamples
+        buffer_chunk_FL.setSize(buffer_FL.getNumChannels(), buffer_size);
         reader_FL->read (&buffer_FL, 0, (int) reader_FL->lengthInSamples, 0, true, true);
     }
     
     if (reader_FR != nullptr)
     {
         buffer_FR.setSize(2, (int) reader_FR->lengthInSamples);
+        buffer_chunk_FR.setSize(buffer_FR.getNumChannels(), buffer_size);
         reader_FR->read (&buffer_FR, 0, (int) reader_FR->lengthInSamples, 0, true, true);
     }
     
     if (reader_C != nullptr)
     {
         buffer_C.setSize(2, (int) reader_C->lengthInSamples);
+        buffer_chunk_C.setSize(buffer_C.getNumChannels(), buffer_size);
         reader_C->read (&buffer_C, 0, (int) reader_C->lengthInSamples, 0, true, true);
     }
     
     if (reader_LFE != nullptr)
     {
         buffer_LFE.setSize(2, (int) reader_LFE->lengthInSamples);
+        buffer_chunk_LFE.setSize(buffer_LFE.getNumChannels(), buffer_size);
         reader_LFE->read (&buffer_LFE, 0, (int) reader_LFE->lengthInSamples, 0, true, true);
     }
     
     if (reader_RL != nullptr)
     {
         buffer_RL.setSize(2, (int) reader_RL->lengthInSamples);
+        buffer_chunk_RL.setSize(buffer_RL.getNumChannels(), buffer_size);
         reader_RL->read (&buffer_RL, 0, (int) reader_RL->lengthInSamples, 0, true, true);
     }
     
     if (reader_RR != nullptr)
     {
         buffer_RR.setSize(2, (int) reader_RR->lengthInSamples);
+        buffer_chunk_RR.setSize(buffer_RR.getNumChannels(), buffer_size);
         reader_RR->read (&buffer_RR, 0, (int) reader_RR->lengthInSamples, 0, true, true);
     }
 
@@ -128,41 +133,24 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = samplesPerBlockExpected;
-    spec.numChannels = buffer_out.getNumChannels();
+    spec.numChannels = buffer_FL.getNumChannels();
     convFL.prepare(spec);
     convFR.prepare(spec);
     convC.prepare(spec);
     convRL.prepare(spec);
     convRR.prepare(spec);
     updateParameters();
-    transport1.prepareToPlay(samplesPerBlockExpected, sampleRate);
+    //transport1.prepareToPlay(samplesPerBlockExpected, sampleRate);
 }
 
 void MainComponent::loadButtonClicked()
 {
     transportStateChanged(Stopped);
-    process();
+    //process();
     auto reader_out = formatManager.createReaderFor(binauralOut);
     std::unique_ptr<AudioFormatReaderSource> Out_Source (new AudioFormatReaderSource (reader_out, true));
     transport1.setSource(Out_Source.get(), 0, nullptr);
     playSource.reset(Out_Source.release());
-}
-
-void MainComponent::loadFile(AudioFormatReader* reader, File file)
-{
-    if (reader != nullptr)
-    {
-        String file_name = file.getFileName();
-        
-        std::cout << file_name << std::endl; //Trace
-        
-        // Pass into new variable with position+_Source
-        std::unique_ptr<AudioFormatReaderSource> source (new AudioFormatReaderSource (reader, true));
-        
-        //get the file ready to playx
-        transportStateChanged(Stopped);
-        playSource.reset(source.release());
-    }
 }
 
 void MainComponent::playButtonClicked()
@@ -225,69 +213,80 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
 {
     // Your audio-processing code goes here!
     
-    // For more details, see the help for AudioProcessor::getNextAudioBlock()
-    
     // Right now we are not producing any data, in which case we need to clear the buffer
     // (to prevent the output of random noise)
     bufferToFill.clearActiveBufferRegion();
-    transport1.getNextAudioBlock(bufferToFill);
-//    AudioBuffer <float> buf;
-//    buf = process();
-//
-//    for (int sample = 0; sample < buf.getNumSamples(); sample+=bufferToFill.numSamples) {
-//    }
-}
-
-void MainComponent::process()
-{
+    
+    // find max samples from all 6 buffers
+    int max_samples_of_front_files = jmax(buffer_FL.getNumSamples(), buffer_FR.getNumSamples(), buffer_C.getNumSamples());
+    int max_samples_of_back_files = jmax(buffer_LFE.getNumSamples(), buffer_RL.getNumSamples(), buffer_RR.getNumSamples());
+    int max_samples_of_input_files = jmax(max_samples_of_front_files, max_samples_of_back_files);
+    
+    int numOutputChannels = bufferToFill.buffer->getNumChannels();
+    auto outputSamplesRemaining = bufferToFill.numSamples;
+    auto outputSamplesOffset = bufferToFill.startSample;
+    
+    //updateParameters();
+    
     // start buffer loop
+    // loop max samples into bufferToFill until exhausted
+    while(outputSamplesRemaining > 0) {
+        
+        auto bufferSamplesRemaining = max_samples_of_input_files - position;
+        auto samplesThisTime = jmin (outputSamplesRemaining, bufferSamplesRemaining);
+        
+        // chunk buffers into manageable portions
+        for (int channel = 0; channel < numOutputChannels; ++channel) {
+            buffer_chunk_FL.copyFrom (channel, 0, buffer_FL, channel, position, samplesThisTime);
+            buffer_chunk_FR.copyFrom (channel, 0, buffer_FR, channel, position, samplesThisTime);
+            buffer_chunk_C.copyFrom (channel, 0, buffer_C, channel, position, samplesThisTime);
+            buffer_chunk_LFE.copyFrom (channel, 0, buffer_LFE, channel, position, samplesThisTime);
+            buffer_chunk_RL.copyFrom (channel, 0, buffer_RL, channel, position, samplesThisTime);
+            buffer_chunk_RR.copyFrom (channel, 0, buffer_RR, channel, position, samplesThisTime);
+        }
     
-    // Load buffers into audio blocks
-    dsp::AudioBlock<float> block_FL (buffer_FL);
-    dsp::AudioBlock<float> block_FR (buffer_FR);
-    dsp::AudioBlock<float> block_C (buffer_C);
-    dsp::AudioBlock<float> block_LFE (buffer_LFE);
-    dsp::AudioBlock<float> block_RL (buffer_RL);
-    dsp::AudioBlock<float> block_RR (buffer_RR);
-    
-    // Get contexts
-    dsp::ProcessContextReplacing<float> context_FL = dsp::ProcessContextReplacing<float>(block_FL);
-    dsp::ProcessContextReplacing<float> context_FR = dsp::ProcessContextReplacing<float>(block_FR);
-    dsp::ProcessContextReplacing<float> context_C = dsp::ProcessContextReplacing<float>(block_C);
-    dsp::ProcessContextReplacing<float> context_RL = dsp::ProcessContextReplacing<float>(block_RL);
-    dsp::ProcessContextReplacing<float> context_RR = dsp::ProcessContextReplacing<float>(block_RR);
-    
-    // Perform Covolutions
-    convFL.process(dsp::ProcessContextReplacing<float> (context_FL));
-    convFR.process(dsp::ProcessContextReplacing<float> (context_FR));
-    convC.process(dsp::ProcessContextReplacing<float> (context_C));
-    convRL.process(dsp::ProcessContextReplacing<float> (context_RL));
-    convRR.process(dsp::ProcessContextReplacing<float> (context_RR));
-    //end buffer loop
-    
-    //get output block from engine
-    dsp::AudioBlock<float> outputBlockFL = context_FL.getOutputBlock();
-    dsp::AudioBlock<float> outputBlockFR = context_FR.getOutputBlock();
-    dsp::AudioBlock<float> outputBlockC = context_C.getOutputBlock();
-    dsp::AudioBlock<float> outputBlockRL = context_RL.getOutputBlock();
-    dsp::AudioBlock<float> outputBlockRR = context_RR.getOutputBlock();
-
-    // Sum to Out Buffer and write to wav file
-    dsp::AudioBlock<float> outBlock (buffer_out);
-    outBlock.copy(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
-    AudioFormatWriter* writer_out;
-    WavAudioFormat waf;
-    StringPairArray meta;
-    binauralOut = File(base_dir + "binaural_output.wav");
-    FileOutputStream* outputTo = binauralOut.createOutputStream();
-    writer_out = waf.createWriterFor(outputTo,sampleRate,2,16,meta,true);
-    if (!written)
-    {
-        writer_out->writeFromAudioSampleBuffer (buffer_out, 0, buffer_out.getNumSamples());
+        // Load buffers into audio blocks
+        dsp::AudioBlock<float> block_FL (buffer_chunk_FL);
+        dsp::AudioBlock<float> block_FR (buffer_chunk_FR);
+        dsp::AudioBlock<float> block_C (buffer_chunk_C);
+        dsp::AudioBlock<float> block_LFE (buffer_chunk_LFE);
+        dsp::AudioBlock<float> block_RL (buffer_chunk_RL);
+        dsp::AudioBlock<float> block_RR (buffer_chunk_RR);
+        
+        // Get contexts
+        dsp::ProcessContextReplacing<float> context_FL = dsp::ProcessContextReplacing<float>(block_FL);
+        dsp::ProcessContextReplacing<float> context_FR = dsp::ProcessContextReplacing<float>(block_FR);
+        dsp::ProcessContextReplacing<float> context_C = dsp::ProcessContextReplacing<float>(block_C);
+        dsp::ProcessContextReplacing<float> context_RL = dsp::ProcessContextReplacing<float>(block_RL);
+        dsp::ProcessContextReplacing<float> context_RR = dsp::ProcessContextReplacing<float>(block_RR);
+        
+        // Perform Covolutions
+        convFL.process(context_FL);
+        convFR.process(context_FR);
+        convC.process(context_C);
+        convRL.process(context_RL);
+        convRR.process(context_RR);
+        
+        //get output block from engine
+        dsp::AudioBlock<float> outputBlockFL = context_FL.getOutputBlock();
+        dsp::AudioBlock<float> outputBlockFR = context_FR.getOutputBlock();
+        dsp::AudioBlock<float> outputBlockC = context_C.getOutputBlock();
+        dsp::AudioBlock<float> outputBlockRL = context_RL.getOutputBlock();
+        dsp::AudioBlock<float> outputBlockRR = context_RR.getOutputBlock();
+        
+        // Sum to Out Buffer
+        dsp::AudioBlock<float> outBlock (*bufferToFill.buffer);
+        outBlock.copy(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
+        
+        
+        outputSamplesRemaining -= samplesThisTime;
+        outputSamplesOffset += samplesThisTime;
+        position += samplesThisTime;
+        
+        if (position == max_samples_of_input_files)
+            position = 0;
     }
-    delete writer_out;
-    
-    //return buffer_out;
+    //end buffer loop
 }
 
 void MainComponent::updateParameters()
@@ -299,8 +298,6 @@ void MainComponent::updateParameters()
     hrirC = File(hrir_file_dir + "hrirC.wav");
     hrirRL = File(hrir_file_dir + "hrirRL.wav");
     hrirRR = File(hrir_file_dir + "hrirRR.wav");
-    
-    //auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     
     convFL.loadImpulseResponse(hrirFL, true, false, hrirLenSlider.getValue(), true);
     convFR.loadImpulseResponse(hrirFR, true, false, hrirLenSlider.getValue(), true);
@@ -324,12 +321,8 @@ void MainComponent::releaseResources()
     // restarted due to a setting change.
 
     // For more details, see the help for AudioProcessor::releaseResources()
-    mixer.releaseResources();
     transport1.releaseResources();
     reset();
-    
-    //Clear Out Buffer
-    buffer_out.clear();
 }
 
 //==============================================================================

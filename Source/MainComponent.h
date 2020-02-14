@@ -17,6 +17,7 @@
 */
 class MainComponent   : public AudioAppComponent,
                         public ChangeListener
+                       // public Slider::Listener
 {
 public:
     //==============================================================================
@@ -49,26 +50,26 @@ private:
     TransportState state;
     
     void loadButtonClicked();
-    void loadFile(AudioFormatReader* reader, File file);
     void playButtonClicked();
     void stopButtonClicked();
     void transportStateChanged(TransportState newState);
     void changeListenerCallback (ChangeBroadcaster *source) override;
-    void process();
+    AudioBuffer <float> process();
     void updateParameters();
     void reset();
     
-    AudioFormatManager formatManager;
     
-    std::unique_ptr<AudioFormatReaderSource> playSource, playSource2;
+    
+    AudioFormatManager formatManager;
+    std::unique_ptr<AudioFormatReaderSource> playSource;
     
     dsp::Convolution convFL, convFR, convC, convRL, convRR;
     AudioBuffer<float> buffer_FL, buffer_FR, buffer_C, buffer_LFE, buffer_RL, buffer_RR;
-    AudioBuffer<float> buffer_out;
+    AudioBuffer<float> buffer_chunk_FL, buffer_chunk_FR, buffer_chunk_C, buffer_chunk_LFE, buffer_chunk_RL, buffer_chunk_RR;
     double sampleRate = 44100;
     bool written = false;
-    MixerAudioSource mixer;
-    AudioSourcePlayer player;
+    int buffer_size = 512;
+    int position = 0;
     
     Slider hrirLenSlider;
     TextButton loadButton;
@@ -86,11 +87,6 @@ private:
     String base_dir = app_path_string.substring(0, build_index);
     String audio_file_dir = base_dir + "data/audio_content/";
     String hrir_file_dir = base_dir + "data/hrir/";
-    
-    enum Channels {
-        LEFT = 0,
-        RIGHT = 1
-    };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
