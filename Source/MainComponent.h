@@ -15,9 +15,7 @@
     This component lives inside our window, and this is where you should put all
     your controls and content.
 */
-class MainComponent   : public AudioAppComponent,
-                        public ChangeListener
-                       // public Slider::Listener
+class MainComponent   : public AudioAppComponent
 {
 public:
     //==============================================================================
@@ -39,26 +37,8 @@ private:
     //==============================================================================
     // Your private member variables go here...
     
-    enum TransportState
-    {
-        Stopped,
-        Starting,
-        Stopping,
-        Playing
-    };
-    
-    TransportState state;
-    
-    void loadButtonClicked();
-    void playButtonClicked();
-    void stopButtonClicked();
-    void transportStateChanged(TransportState newState);
-    void changeListenerCallback (ChangeBroadcaster *source) override;
-    AudioBuffer <float> process();
     void updateParameters();
     void reset();
-    
-    
     
     AudioFormatManager formatManager;
     std::unique_ptr<AudioFormatReaderSource> playSource;

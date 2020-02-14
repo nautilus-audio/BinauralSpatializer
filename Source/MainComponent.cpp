@@ -13,23 +13,10 @@
 #include <iostream>
 
 //==============================================================================
-MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load"), playButton("Play"), stopButton("Stop")
+MainComponent::MainComponent()
 {
     // Make sure you set the size of the component after
     // you add any child components.
-    
-    loadButton.onClick = [this] {  loadButtonClicked();  loadButton.setColour(TextButton::buttonColourId, Colours::yellow);};
-    addAndMakeVisible(&loadButton);
-    
-    playButton.onClick = [this] { playButtonClicked(); };
-    playButton.setColour(TextButton::buttonColourId, Colours::green);
-    playButton.setEnabled(true);
-    addAndMakeVisible(&playButton);
-    
-    stopButton.onClick = [this] { stopButtonClicked(); loadButton.setColour(TextButton::buttonColourId, Colours::grey);};
-    stopButton.setColour(TextButton::buttonColourId, Colours::red);
-    stopButton.setEnabled(false);
-    addAndMakeVisible(&stopButton);
     
     //auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     hrirLenSlider.setRange(0, 400);
@@ -37,7 +24,6 @@ MainComponent::MainComponent() :state(Stopped), loadButton("Process & Load"), pl
     addAndMakeVisible(&hrirLenSlider);
     
     formatManager.registerBasicFormats();
-    transport1.addChangeListener(this);
     
     setSize (600, 400);
     
@@ -141,72 +127,6 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     convRR.prepare(spec);
     updateParameters();
     //transport1.prepareToPlay(samplesPerBlockExpected, sampleRate);
-}
-
-void MainComponent::loadButtonClicked()
-{
-    transportStateChanged(Stopped);
-    //process();
-    auto reader_out = formatManager.createReaderFor(binauralOut);
-    std::unique_ptr<AudioFormatReaderSource> Out_Source (new AudioFormatReaderSource (reader_out, true));
-    transport1.setSource(Out_Source.get(), 0, nullptr);
-    playSource.reset(Out_Source.release());
-}
-
-void MainComponent::playButtonClicked()
-{
-    transportStateChanged(Starting);
-}
-
-void MainComponent::stopButtonClicked()
-{
-    transportStateChanged(Stopping);
-}
-
-void MainComponent::transportStateChanged(TransportState newState)
-{
-    if (newState != state)
-    {
-        state = newState;
-        
-        switch (state) {
-            case Stopped:
-                playButton.setEnabled(true);
-                transport1.setPosition(0.0);
-                break;
-                
-            case Playing:
-                playButton.setEnabled(true);
-                break;
-                
-            case Starting:
-                stopButton.setEnabled(true);
-                playButton.setEnabled(false);
-                transport1.start();
-                break;
-                
-            case Stopping:
-                playButton.setEnabled(true);
-                stopButton.setEnabled(false);
-                transport1.stop();
-                break;
-        }
-    }
-}
-
-void MainComponent::changeListenerCallback (ChangeBroadcaster *source)
-{
-    if (source == &transport1)
-    {
-        if (transport1.isPlaying())
-        {
-            transportStateChanged(Playing);
-        }
-        else
-        {
-            transportStateChanged(Stopped);
-        }
-    }
 }
 
 void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill)
@@ -338,8 +258,5 @@ void MainComponent::resized()
     // This is called when the MainContentComponent is resized.
     // If you add any child components, this is where you should
     // update their positions.
-    loadButton.setBounds(10, 10, getWidth() - 20, 30);
-    playButton.setBounds(10, 50, getWidth() - 20, 30);
-    stopButton.setBounds(10, 90, getWidth() - 20, 30);
     hrirLenSlider.setBounds(10, 120, getWidth() - 20, 30);
 }
