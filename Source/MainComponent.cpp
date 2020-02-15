@@ -18,7 +18,6 @@ MainComponent::MainComponent()
     // Make sure you set the size of the component after
     // you add any child components.
     
-    //auto maxSize = static_cast<size_t> (roundToInt (sampleRate * (8192.0 / 44100.0)));
     hrirLenSlider.setRange(0, 400);
     hrirLenSlider.onValueChange = [this] {updateParameters();};
     addAndMakeVisible(&hrirLenSlider);
@@ -155,7 +154,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
         auto bufferSamplesRemaining = max_samples_of_input_files - position;
         auto samplesThisTime = jmin (outputSamplesRemaining, bufferSamplesRemaining);
         
-        // chunk buffers into manageable portions
+        // chunk buffers into manageable portions, into stereo channels
         for (int channel = 0; channel < numOutputChannels; ++channel) {
             buffer_chunk_FL.copyFrom (channel, 0, buffer_FL, channel, position, samplesThisTime);
             buffer_chunk_FR.copyFrom (channel, 0, buffer_FR, channel, position, samplesThisTime);
@@ -203,6 +202,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
         outputSamplesOffset += samplesThisTime;
         position += samplesThisTime;
         
+        // Loop when audio is finished
         if (position == max_samples_of_input_files)
             position = 0;
     }
@@ -219,11 +219,14 @@ void MainComponent::updateParameters()
     hrirRL = File(hrir_file_dir + "hrirRL.wav");
     hrirRR = File(hrir_file_dir + "hrirRR.wav");
     
-    convFL.loadImpulseResponse(hrirFL, true, false, hrirLenSlider.getValue(), true);
-    convFR.loadImpulseResponse(hrirFR, true, false, hrirLenSlider.getValue(), true);
-    convC.loadImpulseResponse(hrirC, true, false, hrirLenSlider.getValue(), true);
-    convRL.loadImpulseResponse(hrirRL, true, false, hrirLenSlider.getValue(), true);
-    convRR.loadImpulseResponse(hrirRR, true, false, hrirLenSlider.getValue(), true);
+    size_t currentSliderValue = hrirLenSlider.getValue();
+    //hrirC.getSize()
+    
+    convFL.loadImpulseResponse(hrirFL, true, false, currentSliderValue, true);
+    convFR.loadImpulseResponse(hrirFR, true, false, currentSliderValue, true);
+    convC.loadImpulseResponse(hrirC, true, false, currentSliderValue, true);
+    convRL.loadImpulseResponse(hrirRL, true, false, currentSliderValue, true);
+    convRR.loadImpulseResponse(hrirRR, true, false, currentSliderValue, true);
 }
 
 void MainComponent::reset()
