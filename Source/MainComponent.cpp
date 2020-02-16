@@ -18,13 +18,18 @@ MainComponent::MainComponent()
     // Make sure you set the size of the component after
     // you add any child components.
     
-    hrirLenSlider.setRange(0, 400);
-    hrirLenSlider.onValueChange = [this] {updateParameters();};
-    addAndMakeVisible(&hrirLenSlider);
+    hrirLenSliderH.setRange(0, 400);
+    hrirLenSliderH.onValueChange = [this] {updateParameters();};
+    addAndMakeVisible(&hrirLenSliderH);
+    
+    hrirLenSliderV.setRange(0, 400);
+    hrirLenSliderV.setSliderStyle(juce::Slider::LinearVertical);
+    hrirLenSliderV.onValueChange = [this] {updateParameters();};
+    addAndMakeVisible(&hrirLenSliderV);
     
     formatManager.registerBasicFormats();
     
-    setSize (600, 400);
+    setSize (600, 600);
     
     file_01_FL = File(audio_file_dir + "file-01-FL.wav");
     file_02_FR = File(audio_file_dir + "file-02-FR.wav");
@@ -125,7 +130,6 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
     convRL.prepare(spec);
     convRR.prepare(spec);
     updateParameters();
-    //transport1.prepareToPlay(samplesPerBlockExpected, sampleRate);
 }
 
 void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill)
@@ -143,70 +147,59 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     
     int numOutputChannels = bufferToFill.buffer->getNumChannels();
     auto outputSamplesRemaining = bufferToFill.numSamples;
-    auto outputSamplesOffset = bufferToFill.startSample;
     
-    //updateParameters();
-    
-    // start buffer loop
     // loop max samples into bufferToFill until exhausted
-    while(outputSamplesRemaining > 0) {
-        
-        auto bufferSamplesRemaining = max_samples_of_input_files - position;
-        auto samplesThisTime = jmin (outputSamplesRemaining, bufferSamplesRemaining);
-        
-        // chunk buffers into manageable portions, into stereo channels
-        for (int channel = 0; channel < numOutputChannels; ++channel) {
-            buffer_chunk_FL.copyFrom (channel, 0, buffer_FL, channel, position, samplesThisTime);
-            buffer_chunk_FR.copyFrom (channel, 0, buffer_FR, channel, position, samplesThisTime);
-            buffer_chunk_C.copyFrom (channel, 0, buffer_C, channel, position, samplesThisTime);
-            buffer_chunk_LFE.copyFrom (channel, 0, buffer_LFE, channel, position, samplesThisTime);
-            buffer_chunk_RL.copyFrom (channel, 0, buffer_RL, channel, position, samplesThisTime);
-            buffer_chunk_RR.copyFrom (channel, 0, buffer_RR, channel, position, samplesThisTime);
-        }
+    auto bufferSamplesRemaining = max_samples_of_input_files - position;
+    auto samplesToProcess = jmin (outputSamplesRemaining, bufferSamplesRemaining);
     
-        // Load buffers into audio blocks
-        dsp::AudioBlock<float> block_FL (buffer_chunk_FL);
-        dsp::AudioBlock<float> block_FR (buffer_chunk_FR);
-        dsp::AudioBlock<float> block_C (buffer_chunk_C);
-        dsp::AudioBlock<float> block_LFE (buffer_chunk_LFE);
-        dsp::AudioBlock<float> block_RL (buffer_chunk_RL);
-        dsp::AudioBlock<float> block_RR (buffer_chunk_RR);
-        
-        // Get contexts
-        dsp::ProcessContextReplacing<float> context_FL = dsp::ProcessContextReplacing<float>(block_FL);
-        dsp::ProcessContextReplacing<float> context_FR = dsp::ProcessContextReplacing<float>(block_FR);
-        dsp::ProcessContextReplacing<float> context_C = dsp::ProcessContextReplacing<float>(block_C);
-        dsp::ProcessContextReplacing<float> context_RL = dsp::ProcessContextReplacing<float>(block_RL);
-        dsp::ProcessContextReplacing<float> context_RR = dsp::ProcessContextReplacing<float>(block_RR);
-        
-        // Perform Covolutions
-        convFL.process(context_FL);
-        convFR.process(context_FR);
-        convC.process(context_C);
-        convRL.process(context_RL);
-        convRR.process(context_RR);
-        
-        //get output block from engine
-        dsp::AudioBlock<float> outputBlockFL = context_FL.getOutputBlock();
-        dsp::AudioBlock<float> outputBlockFR = context_FR.getOutputBlock();
-        dsp::AudioBlock<float> outputBlockC = context_C.getOutputBlock();
-        dsp::AudioBlock<float> outputBlockRL = context_RL.getOutputBlock();
-        dsp::AudioBlock<float> outputBlockRR = context_RR.getOutputBlock();
-        
-        // Sum to Out Buffer
-        dsp::AudioBlock<float> outBlock (*bufferToFill.buffer);
-        outBlock.copy(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
-        
-        
-        outputSamplesRemaining -= samplesThisTime;
-        outputSamplesOffset += samplesThisTime;
-        position += samplesThisTime;
-        
-        // Loop when audio is finished
-        if (position == max_samples_of_input_files)
-            position = 0;
+    // chunk buffers into manageable portions, for each stereo channel
+    for (int channel = 0; channel < numOutputChannels; ++channel) {
+        buffer_chunk_FL.copyFrom (channel, 0, buffer_FL, channel, position, samplesToProcess);
+        buffer_chunk_FR.copyFrom (channel, 0, buffer_FR, channel, position, samplesToProcess);
+        buffer_chunk_C.copyFrom (channel, 0, buffer_C, channel, position, samplesToProcess);
+        buffer_chunk_LFE.copyFrom (channel, 0, buffer_LFE, channel, position, samplesToProcess);
+        buffer_chunk_RL.copyFrom (channel, 0, buffer_RL, channel, position, samplesToProcess);
+        buffer_chunk_RR.copyFrom (channel, 0, buffer_RR, channel, position, samplesToProcess);
     }
-    //end buffer loop
+
+    // Load buffer chunks into audio blocks
+    dsp::AudioBlock<float> block_FL (buffer_chunk_FL);
+    dsp::AudioBlock<float> block_FR (buffer_chunk_FR);
+    dsp::AudioBlock<float> block_C (buffer_chunk_C);
+    dsp::AudioBlock<float> block_LFE (buffer_chunk_LFE);
+    dsp::AudioBlock<float> block_RL (buffer_chunk_RL);
+    dsp::AudioBlock<float> block_RR (buffer_chunk_RR);
+    
+    // Get contexts
+    dsp::ProcessContextReplacing<float> context_FL = dsp::ProcessContextReplacing<float>(block_FL);
+    dsp::ProcessContextReplacing<float> context_FR = dsp::ProcessContextReplacing<float>(block_FR);
+    dsp::ProcessContextReplacing<float> context_C = dsp::ProcessContextReplacing<float>(block_C);
+    dsp::ProcessContextReplacing<float> context_RL = dsp::ProcessContextReplacing<float>(block_RL);
+    dsp::ProcessContextReplacing<float> context_RR = dsp::ProcessContextReplacing<float>(block_RR);
+    
+    // Perform Covolutions
+    convFL.process(context_FL);
+    convFR.process(context_FR);
+    convC.process(context_C);
+    convRL.process(context_RL);
+    convRR.process(context_RR);
+    
+    //get output block from engine
+    dsp::AudioBlock<float> outputBlockFL = context_FL.getOutputBlock();
+    dsp::AudioBlock<float> outputBlockFR = context_FR.getOutputBlock();
+    dsp::AudioBlock<float> outputBlockC = context_C.getOutputBlock();
+    dsp::AudioBlock<float> outputBlockRL = context_RL.getOutputBlock();
+    dsp::AudioBlock<float> outputBlockRR = context_RR.getOutputBlock();
+    
+    // Sum to Out Buffer
+    dsp::AudioBlock<float> outBlock (*bufferToFill.buffer);
+    outBlock.copy(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
+    
+    position += samplesToProcess;
+    
+    // Loop when audio is finished
+    if (position == max_samples_of_input_files)
+        position = 0;
 }
 
 void MainComponent::updateParameters()
@@ -219,14 +212,14 @@ void MainComponent::updateParameters()
     hrirRL = File(hrir_file_dir + "hrirRL.wav");
     hrirRR = File(hrir_file_dir + "hrirRR.wav");
     
-    size_t currentSliderValue = hrirLenSlider.getValue();
-    //hrirC.getSize()
+    size_t currentSliderHValue = hrirLenSliderH.getValue();
+//    size_t currentSliderVValue = hrirLenSliderV.getValue();
     
-    convFL.loadImpulseResponse(hrirFL, true, false, currentSliderValue, true);
-    convFR.loadImpulseResponse(hrirFR, true, false, currentSliderValue, true);
-    convC.loadImpulseResponse(hrirC, true, false, currentSliderValue, true);
-    convRL.loadImpulseResponse(hrirRL, true, false, currentSliderValue, true);
-    convRR.loadImpulseResponse(hrirRR, true, false, currentSliderValue, true);
+    convFL.loadImpulseResponse(hrirFL, true, false, currentSliderHValue, true);
+    convFR.loadImpulseResponse(hrirFR, true, false, currentSliderHValue, true);
+    convC.loadImpulseResponse(hrirC, true, false, currentSliderHValue, true);
+    convRL.loadImpulseResponse(hrirRL, true, false, currentSliderHValue, true);
+    convRR.loadImpulseResponse(hrirRR, true, false, currentSliderHValue, true);
 }
 
 void MainComponent::reset()
@@ -253,6 +246,7 @@ void MainComponent::paint (Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+    g.setOpacity(1.0f);
 
 }
 
@@ -261,5 +255,6 @@ void MainComponent::resized()
     // This is called when the MainContentComponent is resized.
     // If you add any child components, this is where you should
     // update their positions.
-    hrirLenSlider.setBounds(10, 120, getWidth() - 20, 30);
+    hrirLenSliderH.setBounds(10, 120, getWidth() - 20, 30);
+    //hrirLenSliderV.setBounds(10, 180, getWidth() - 20, 200);
 }

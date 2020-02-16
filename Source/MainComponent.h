@@ -41,17 +41,16 @@ private:
     void reset();
     
     AudioFormatManager formatManager;
-    std::unique_ptr<AudioFormatReaderSource> playSource;
     
     dsp::Convolution convFL, convFR, convC, convRL, convRR;
     AudioBuffer<float> buffer_FL, buffer_FR, buffer_C, buffer_LFE, buffer_RL, buffer_RR;
     AudioBuffer<float> buffer_chunk_FL, buffer_chunk_FR, buffer_chunk_C, buffer_chunk_LFE, buffer_chunk_RL, buffer_chunk_RR;
     double sampleRate = 44100;
-    bool written = false;
     int buffer_size = 512;
     int position = 0;
     
-    Slider hrirLenSlider;
+    Slider hrirLenSliderH;
+    Slider hrirLenSliderV;
     TextButton loadButton;
     TextButton playButton;
     TextButton stopButton;
