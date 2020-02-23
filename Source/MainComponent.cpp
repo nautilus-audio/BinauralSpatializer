@@ -7,6 +7,7 @@
 */
 
 #include "MainComponent.h"
+#include "FileReader.h"
 #include <stdlib.h>
 #include <string>
 #include <cstring>
@@ -22,73 +23,33 @@ MainComponent::MainComponent()
     hrirLenSliderH.onValueChange = [this] {updateParameters();};
     addAndMakeVisible(&hrirLenSliderH);
     
-    hrirLenSliderV.setRange(0, 400);
-    hrirLenSliderV.setSliderStyle(juce::Slider::LinearVertical);
-    hrirLenSliderV.onValueChange = [this] {updateParameters();};
-    addAndMakeVisible(&hrirLenSliderV);
-    
-    formatManager.registerBasicFormats();
+    buffer_chunk_FL.setSize(2, buffer_size);
+    buffer_chunk_FR.setSize(2, buffer_size);
+    buffer_chunk_C.setSize(2, buffer_size);
+    buffer_chunk_LFE.setSize(2, buffer_size);
+    buffer_chunk_RL.setSize(2, buffer_size);
+    buffer_chunk_RR.setSize(2, buffer_size);
     
     setSize (600, 600);
     
+    formatManager.registerBasicFormats();
+    
+    // Initalize audio files via paths
     file_01_FL = File(audio_file_dir + "file-01-FL.wav");
     file_02_FR = File(audio_file_dir + "file-02-FR.wav");
     file_03_C = File(audio_file_dir + "file-03-C.wav");
     file_04_LFE = File(audio_file_dir + "file-04-LFE.wav");
     file_05_RL = File(audio_file_dir + "file-05-RL.wav");
     file_06_RR = File(audio_file_dir + "file-06-RR.wav");
-
-    //read the files
-    AudioFormatReader* reader_FL = formatManager.createReaderFor(file_01_FL);
-    AudioFormatReader* reader_FR = formatManager.createReaderFor(file_02_FR);
-    AudioFormatReader* reader_C = formatManager.createReaderFor(file_03_C);
-    AudioFormatReader* reader_LFE = formatManager.createReaderFor(file_04_LFE);
-    AudioFormatReader* reader_RL = formatManager.createReaderFor(file_05_RL);
-    AudioFormatReader* reader_RR = formatManager.createReaderFor(file_06_RR);
     
-    //read files into buffers for convolution
-    if (reader_FL != nullptr)
-    {
-        buffer_FL.setSize(2, (int) reader_FL->lengthInSamples); //maybe reader_FL->lengthInSamples
-        buffer_chunk_FL.setSize(buffer_FL.getNumChannels(), buffer_size);
-        reader_FL->read (&buffer_FL, 0, (int) reader_FL->lengthInSamples, 0, true, true);
-    }
+    // init readers for audio files
+    reader_FL = formatManager.createReaderFor(file_01_FL);
+    reader_FR = formatManager.createReaderFor(file_02_FR);
+    reader_C = formatManager.createReaderFor(file_03_C);
+    reader_LFE = formatManager.createReaderFor(file_04_LFE);
+    reader_RL = formatManager.createReaderFor(file_05_RL);
+    reader_RR = formatManager.createReaderFor(file_06_RR);
     
-    if (reader_FR != nullptr)
-    {
-        buffer_FR.setSize(2, (int) reader_FR->lengthInSamples);
-        buffer_chunk_FR.setSize(buffer_FR.getNumChannels(), buffer_size);
-        reader_FR->read (&buffer_FR, 0, (int) reader_FR->lengthInSamples, 0, true, true);
-    }
-    
-    if (reader_C != nullptr)
-    {
-        buffer_C.setSize(2, (int) reader_C->lengthInSamples);
-        buffer_chunk_C.setSize(buffer_C.getNumChannels(), buffer_size);
-        reader_C->read (&buffer_C, 0, (int) reader_C->lengthInSamples, 0, true, true);
-    }
-    
-    if (reader_LFE != nullptr)
-    {
-        buffer_LFE.setSize(2, (int) reader_LFE->lengthInSamples);
-        buffer_chunk_LFE.setSize(buffer_LFE.getNumChannels(), buffer_size);
-        reader_LFE->read (&buffer_LFE, 0, (int) reader_LFE->lengthInSamples, 0, true, true);
-    }
-    
-    if (reader_RL != nullptr)
-    {
-        buffer_RL.setSize(2, (int) reader_RL->lengthInSamples);
-        buffer_chunk_RL.setSize(buffer_RL.getNumChannels(), buffer_size);
-        reader_RL->read (&buffer_RL, 0, (int) reader_RL->lengthInSamples, 0, true, true);
-    }
-    
-    if (reader_RR != nullptr)
-    {
-        buffer_RR.setSize(2, (int) reader_RR->lengthInSamples);
-        buffer_chunk_RR.setSize(buffer_RR.getNumChannels(), buffer_size);
-        reader_RR->read (&buffer_RR, 0, (int) reader_RR->lengthInSamples, 0, true, true);
-    }
-
     // Some platforms require permissions to open input channels so request that here
     if (RuntimePermissions::isRequired (RuntimePermissions::recordAudio)
         && ! RuntimePermissions::isGranted (RuntimePermissions::recordAudio))
@@ -107,6 +68,13 @@ MainComponent::~MainComponent()
 {
     // This shuts down the audio device and clears the audio source.
     shutdownAudio();
+    
+    buffer_chunk_FL.clear();
+    buffer_chunk_FR.clear();
+    buffer_chunk_C.clear();
+    buffer_chunk_LFE.clear();
+    buffer_chunk_RL.clear();
+    buffer_chunk_RR.clear();
 }
 
 //==============================================================================
@@ -120,10 +88,12 @@ void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRat
 
     // For more details, see the help for AudioProcessor::prepareToPlay()
     
+    int numOutChannels = deviceManager.getCurrentAudioDevice()->getActiveOutputChannels().countNumberOfSetBits();
+    
     dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = samplesPerBlockExpected;
-    spec.numChannels = buffer_FL.getNumChannels();
+    spec.numChannels = numOutChannels;
     convFL.prepare(spec);
     convFR.prepare(spec);
     convC.prepare(spec);
@@ -140,29 +110,52 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     // (to prevent the output of random noise)
     bufferToFill.clearActiveBufferRegion();
     
+    
     // find max samples from all 6 buffers
-    int max_samples_of_front_files = jmax(buffer_FL.getNumSamples(), buffer_FR.getNumSamples(), buffer_C.getNumSamples());
-    int max_samples_of_back_files = jmax(buffer_LFE.getNumSamples(), buffer_RL.getNumSamples(), buffer_RR.getNumSamples());
+    int max_samples_of_front_files = jmax(int(reader_FL->lengthInSamples), int(reader_FR->lengthInSamples), int(reader_C->lengthInSamples));
+    int max_samples_of_back_files = jmax(int(reader_LFE->lengthInSamples), int(reader_RL->lengthInSamples), int(reader_RR->lengthInSamples));
     int max_samples_of_input_files = jmax(max_samples_of_front_files, max_samples_of_back_files);
     
-    int numOutputChannels = bufferToFill.buffer->getNumChannels();
+    // int numOutputChannels = bufferToFill.buffer->getNumChannels();
     auto outputSamplesRemaining = bufferToFill.numSamples;
     
     // loop max samples into bufferToFill until exhausted
     auto bufferSamplesRemaining = max_samples_of_input_files - position;
     auto samplesToProcess = jmin (outputSamplesRemaining, bufferSamplesRemaining);
     
-    // chunk buffers into manageable portions, for each stereo channel
-    for (int channel = 0; channel < numOutputChannels; ++channel) {
-        buffer_chunk_FL.copyFrom (channel, 0, buffer_FL, channel, position, samplesToProcess);
-        buffer_chunk_FR.copyFrom (channel, 0, buffer_FR, channel, position, samplesToProcess);
-        buffer_chunk_C.copyFrom (channel, 0, buffer_C, channel, position, samplesToProcess);
-        buffer_chunk_LFE.copyFrom (channel, 0, buffer_LFE, channel, position, samplesToProcess);
-        buffer_chunk_RL.copyFrom (channel, 0, buffer_RL, channel, position, samplesToProcess);
-        buffer_chunk_RR.copyFrom (channel, 0, buffer_RR, channel, position, samplesToProcess);
+    //read file chunks into buffers for convolution
+    if (reader_FL != nullptr)
+    {
+        // buffer, startSampleDestbuffer, numSamples, readerStartSample
+        reader_FL->read (&buffer_chunk_FL, 0, samplesToProcess, position, true, true);
     }
-
-    // Load buffer chunks into audio blocks
+    
+    if (reader_FR != nullptr)
+    {
+        reader_FR->read (&buffer_chunk_FR, 0, samplesToProcess, position, true, true);
+    }
+    
+    if (reader_C != nullptr)
+    {
+        reader_C->read (&buffer_chunk_C, 0, samplesToProcess, position, true, true);
+    }
+    
+    if (reader_LFE != nullptr)
+    {
+        reader_LFE->read (&buffer_chunk_LFE, 0, samplesToProcess, position, true, true);
+    }
+    
+    if (reader_RL != nullptr)
+    {
+        reader_RL->read (&buffer_chunk_RL, 0, samplesToProcess, position, true, true);
+    }
+    
+    if (reader_RR != nullptr)
+    {
+        reader_RR->read (&buffer_chunk_RR, 0, samplesToProcess, position, true, true);
+    }
+    
+    // Load buffer chunks into audio blocks, for performing convolutions in the frequency domain
     dsp::AudioBlock<float> block_FL (buffer_chunk_FL);
     dsp::AudioBlock<float> block_FR (buffer_chunk_FR);
     dsp::AudioBlock<float> block_C (buffer_chunk_C);
@@ -184,7 +177,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     convRL.process(context_RL);
     convRR.process(context_RR);
     
-    //get output block from engine
+    //get output blocks from engine
     dsp::AudioBlock<float> outputBlockFL = context_FL.getOutputBlock();
     dsp::AudioBlock<float> outputBlockFR = context_FR.getOutputBlock();
     dsp::AudioBlock<float> outputBlockC = context_C.getOutputBlock();
@@ -193,7 +186,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     
     // Sum to Out Buffer
     dsp::AudioBlock<float> outBlock (*bufferToFill.buffer);
-    outBlock.copy(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
+    outBlock.copyFrom(outputBlockFL.add(outputBlockFR).add(outputBlockC).add(block_LFE).add(outputBlockRL).add(outputBlockRR));
     
     position += samplesToProcess;
     
@@ -213,7 +206,6 @@ void MainComponent::updateParameters()
     hrirRR = File(hrir_file_dir + "hrirRR.wav");
     
     size_t currentSliderHValue = hrirLenSliderH.getValue();
-//    size_t currentSliderVValue = hrirLenSliderV.getValue();
     
     convFL.loadImpulseResponse(hrirFL, true, false, currentSliderHValue, true);
     convFR.loadImpulseResponse(hrirFR, true, false, currentSliderHValue, true);
@@ -231,14 +223,24 @@ void MainComponent::reset()
     convRR.reset();
 }
 
+void MainComponent::clearBuffers()
+{
+    buffer_chunk_FL.clear();
+    buffer_chunk_FR.clear();
+    buffer_chunk_C.clear();
+    buffer_chunk_LFE.clear();
+    buffer_chunk_RL.clear();
+    buffer_chunk_RR.clear();
+}
+
 void MainComponent::releaseResources()
 {
     // This will be called when the audio device stops, or when it is being
     // restarted due to a setting change.
 
     // For more details, see the help for AudioProcessor::releaseResources()
-    transport1.releaseResources();
     reset();
+    clearBuffers();
 }
 
 //==============================================================================
@@ -256,5 +258,4 @@ void MainComponent::resized()
     // If you add any child components, this is where you should
     // update their positions.
     hrirLenSliderH.setBounds(10, 120, getWidth() - 20, 30);
-    //hrirLenSliderV.setBounds(10, 180, getWidth() - 20, 200);
 }

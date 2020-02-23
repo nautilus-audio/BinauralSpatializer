@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="VvoYuc" name="EmbodyChallenge" projectType="guiapp" jucerVersion="5.4.3">
+<JUCERPROJECT id="VvoYuc" name="EmbodyChallenge" projectType="guiapp" jucerVersion="5.4.7"
+              displaySplashScreen="1" reportAppUsage="1" splashScreenColour="Dark"
+              version="1.0.0" bundleIdentifier="com.yourcompany.EmbodyChallenge"
+              includeBinaryInAppConfig="1" cppLanguageStandard="14" companyCopyright="">
   <MAINGROUP id="aQ908v" name="EmbodyChallenge">
     <GROUP id="{DE8106EE-F23D-F175-7D70-37542D22A625}" name="Source">
+      <FILE id="nHqbM6" name="FileReader.h" compile="0" resource="0" file="Source/FileReader.h"/>
       <FILE id="DuocxR" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="KEuMtc" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
@@ -12,13 +16,13 @@
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug"/>
-        <CONFIGURATION isDebug="0" name="Release"/>
+        <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1"/>
+        <CONFIGURATION isDebug="0" name="Release" enablePluginBinaryCopyStep="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="../../../Documents/JUCE/modules"/>
         <MODULEPATH id="juce_audio_devices" path="../../../Documents/JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../../Documents/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../Documents/JUCE/modules/juce_audio_formats"/>
         <MODULEPATH id="juce_audio_processors" path="../../../Documents/JUCE/modules"/>
         <MODULEPATH id="juce_audio_utils" path="../../../Documents/JUCE/modules"/>
         <MODULEPATH id="juce_core" path="../../../Documents/JUCE/modules"/>
@@ -29,20 +33,20 @@
         <MODULEPATH id="juce_gui_basics" path="../../../Documents/JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../../Documents/JUCE/modules"/>
         <MODULEPATH id="juce_opengl" path="../../../Documents/JUCE/modules"/>
-        <MODULEPATH id="juce_dsp" path="../../../Documents/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../Documents/JUCE/modules/juce_dsp"/>
       </MODULEPATHS>
     </XCODE_MAC>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
-    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
-    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -52,5 +56,5 @@
   <LIVE_SETTINGS>
     <OSX buildEnabled="1"/>
   </LIVE_SETTINGS>
-  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
+  <JUCEOPTIONS/>
 </JUCERPROJECT>
