@@ -6,7 +6,6 @@
               includeBinaryInAppConfig="1" cppLanguageStandard="14" companyCopyright="">
   <MAINGROUP id="aQ908v" name="EmbodyChallenge">
     <GROUP id="{DE8106EE-F23D-F175-7D70-37542D22A625}" name="Source">
-      <FILE id="nHqbM6" name="FileReader.h" compile="0" resource="0" file="Source/FileReader.h"/>
       <FILE id="DuocxR" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="KEuMtc" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>

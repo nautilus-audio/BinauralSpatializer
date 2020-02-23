@@ -7,7 +7,6 @@
 */
 
 #include "MainComponent.h"
-#include "FileReader.h"
 #include <stdlib.h>
 #include <string>
 #include <cstring>

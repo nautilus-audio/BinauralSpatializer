@@ -272,13 +272,6 @@
 			path = ../../Source/MainComponent.h;
 			sourceTree = "SOURCE_ROOT";
 		};
-		83F189D0AAE3343D3C858A01 = {
-			isa = PBXFileReference;
-			lastKnownFileType = sourcecode.c.h;
-			name = FileReader.h;
-			path = ../../Source/FileReader.h;
-			sourceTree = "SOURCE_ROOT";
-		};
 		88534001BCF5045F90A4D0C3 = {
 			isa = PBXFileReference;
 			lastKnownFileType = file;
@@ -471,7 +464,6 @@
 		178A6C5834EE717E9CDA92AB = {
 			isa = PBXGroup;
 			children = (
-				83F189D0AAE3343D3C858A01,
 				8040797BAB97742F351A480F,
 				0F218FD7DC65A95A92D1F629,
 				C5E7A86B0216EC8A617604EB,
